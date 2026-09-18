@@ -1,0 +1,1516 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   CURUPIRA — design tokens
+   Abner Software
+
+   Camada 1 (primitivos) -> camada 2 (semânticos). Componentes só consomem
+   semânticos. Os ratios anotados são contra --surface, salvo indicação.
+   ========================================================================== */
+
+:root {
+  /* --- primitivos ------------------------------------------------------- */
+  --c-void: #08080c;
+  --c-surface: #12121a;
+  --c-surface-2: #1b1b26;
+  --c-cyan: #00f0ff;
+  --c-magenta: #ff2e97;
+  --c-magenta-hi: #ff66b2;
+  --c-lime: #b4ff39;
+  --c-amber: #fbbf24;
+  --c-red: #ff5c5c;
+  --c-ink: #e8e8f0;
+  --c-ink-mute: #a5a5bf;
+  --c-line: #63638f;
+
+  /* --- semânticos ------------------------------------------------------- */
+  --bg: var(--c-void);
+  --surface: var(--c-surface);
+  --surface-2: var(--c-surface-2);
+  --text: var(--c-ink); /* 16,41:1 sobre --bg */
+  --text-muted: var(--c-ink-mute); /* 7,75:1 */
+  --accent: var(--c-cyan); /* 13,23:1 */
+  --brand: var(--c-magenta); /* 5,40:1 */
+  --brand-hi: var(--c-magenta-hi); /* 6,33:1 — usar sobre --surface-2 */
+  --success: var(--c-lime); /* 15,35:1 */
+  --warning: var(--c-amber); /* 11,16:1 */
+  --danger: var(--c-red); /* 6,15:1 */
+  --border: var(--c-line); /* 3,29:1 — piso de objeto gráfico */
+  --on-accent: var(--c-void); /* 14,19:1 sobre neon — nunca branco */
+
+  /* --- tipografia fluida ------------------------------------------------ */
+  --font-ui: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-stack), ui-monospace, "Cascadia Code", monospace;
+
+  /* Piso de 13px: auditoria mediu 12,1px em rótulo de botão e metadados da
+     fila, desconfortável no celular mesmo com contraste aprovado. */
+  --fs-xs: clamp(0.8125rem, 0.79rem + 0.12vw, 0.875rem);
+  --fs-sm: clamp(0.875rem, 0.85rem + 0.2vw, 0.9375rem);
+  --fs-base: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+  --fs-lg: clamp(1.125rem, 1.05rem + 0.4vw, 1.375rem);
+  --fs-xl: clamp(1.5rem, 1.25rem + 1.2vw, 2.25rem);
+  /* 31px a 360px: dentro da faixa de 28-32px recomendada para H1 no celular,
+     e ainda satura em 56px na largura máxima do layout. */
+  --fs-display: clamp(2rem, 1.6rem + 2vw, 3.5rem);
+  --lh-tight: 1.2;
+  --lh-body: 1.6;
+
+  /* --- espaçamento 8pt -------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  --radius: 4px;
+  --radius-lg: 8px;
+  --tap: 48px; /* alvo de toque confortável */
+  --maxw: 1120px;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Malha de fundo e brilho ambiente: decoração pura, atrás de tudo,
+   sem interceptar cliques e sem reduzir o contraste do conteúdo.
+   Fica em -2 porque o campo de partículas (`.backdrop`) ocupa -1 e precisa
+   pintar por cima da malha — e continua sendo o fundo inteiro quando o WebGL
+   não sobe. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      color-mix(in oklab, var(--accent) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 90% 10%,
+      color-mix(in oklab, var(--brand) 8%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(color-mix(in oklab, var(--border) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--border) 7%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Hospedeiro do canvas WebGL. Sem interação, sem seleção, atrás de tudo que
+   é conteúdo — a interface nunca depende dele para ser legível. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.backdrop canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+h1,
+h2,
+h3 {
+  line-height: var(--lh-tight);
+  margin: 0;
+  text-wrap: balance;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--accent);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Foco visível único para todo o app — mantém 13:1 contra a superfície. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+/* Composição centrada: o texto é curto e o app tem um único eixo de leitura
+   (cole o link -> escolha -> acompanhe a fila), então tudo se alinha ao centro.
+   Os contêineres flex/grid abaixo repetem a intenção no eixo deles, porque
+   `text-align` sozinho não move caixa. */
+/* `env(safe-area-inset-*)` é o contrapeso do `viewportFit: "cover"` no layout:
+   o fundo sangra até a borda, mas o conteúdo se afasta do notch e da barra de
+   gestos. Em tela sem recorte todos os `env()` valem 0 e nada muda. */
+.shell {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding: var(--sp-4);
+  padding-top: max(var(--sp-4), env(safe-area-inset-top));
+  padding-inline: max(var(--sp-4), env(safe-area-inset-left), env(safe-area-inset-right));
+  padding-bottom: calc(var(--sp-8) + env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+/* A margem lateral cresce com a tela, mas o degrau começa em 30em: subir a
+   base deixaria o conteúdo com 272px num 320px e agravaria o transbordo. */
+@media (min-width: 30em) {
+  .shell {
+    padding-inline: max(var(--sp-5), env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 48em) {
+  .shell {
+    padding-inline: max(var(--sp-6), env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+}
+
+/* ==========================================================================
+   Cabeçalho / marca
+   ========================================================================== */
+
+.masthead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding-block: var(--sp-5) var(--sp-6);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+
+/* Sem moldura, sem fundo e sem box-shadow: a arte já é neon e traz o próprio
+   halo. Emoldurar um logo que brilha vira selo dentro de selo. */
+.brand__mark {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.brand__name {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* Glow só em texto grande: em corpo de texto o borrão derruba o contraste. */
+  text-shadow: 0 0 18px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.brand__parent {
+  display: block;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+.masthead__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+.dot--ok {
+  background: var(--success);
+  box-shadow: 0 0 10px var(--success);
+}
+.dot--warn {
+  background: var(--warning);
+  box-shadow: 0 0 10px var(--warning);
+}
+.dot--bad {
+  background: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+
+.hero {
+  margin-bottom: var(--sp-6);
+}
+
+/* A ação primária é colar o link. No celular a moldura comprime para que o
+   campo não nasça atrás de duas rolagens. */
+@media (max-width: 47.99em) {
+  .masthead {
+    padding-block: var(--sp-3) var(--sp-4);
+    gap: var(--sp-2);
+  }
+
+  .hero {
+    margin-bottom: var(--sp-5);
+  }
+}
+
+.hero__title {
+  font-size: var(--fs-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--sp-3);
+}
+
+.hero__title em {
+  font-style: normal;
+  color: var(--accent);
+  text-shadow: 0 0 28px color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+.hero__sub {
+  color: var(--text-muted);
+  max-width: 56ch;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   Vitrine de plataformas
+   ========================================================================== */
+
+/* Faixa com superfície própria: os logos precisam de um plano atrás deles para
+   não flutuarem soltos sobre o fundo da página. */
+.platforms {
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+  border-radius: var(--radius-lg);
+}
+
+.platforms__row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3) var(--sp-4);
+}
+
+/* Cor oficial de cada marca, aplicada só no logo — nunca em texto, como manda
+   o DESIGN.md. O hover cresce de leve para dar retorno sem mudar o layout. */
+.platforms__item {
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: inherit;
+  transition: transform 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .platforms__item:hover {
+    transform: scale(1.15);
+  }
+}
+
+/* Em tela estreita a faixa custa quatro linhas. Encolher glifo e respiro
+   devolve metade disso sem esconder nenhuma plataforma. */
+@media (max-width: 29.99em) {
+  .platforms {
+    padding: var(--sp-3);
+  }
+
+  .platforms__row {
+    gap: var(--sp-2) var(--sp-3);
+  }
+
+  .platforms__item {
+    font-size: 1.25rem;
+  }
+}
+
+.platforms__note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Painel / card genérico
+   ========================================================================== */
+
+.panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+}
+
+@media (min-width: 48em) {
+  .panel {
+    padding: var(--sp-5);
+  }
+}
+
+.panel--accent {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow: 0 0 40px -24px var(--accent);
+}
+
+/* ==========================================================================
+   Formulário de URL
+   ========================================================================== */
+
+.field {
+  display: block;
+  margin-bottom: var(--sp-4);
+}
+
+.field__label {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+/* No celular: campo e "Colar" dividem a primeira faixa, e o CTA fica sozinho
+   na segunda. Empilhar os três em 100% deixaria o botão secundário acima do
+   primário, com o mesmo peso, disputando o polegar. */
+.field__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+.field__row > .btn--block {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 30em) {
+  .field__row {
+    display: flex;
+    flex-direction: row;
+  }
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  /* 16px reais: abaixo disso o iOS Safari dá zoom ao focar o campo. */
+  font-size: max(16px, var(--fs-base));
+  font-family: var(--font-mono);
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* URL longa centralizada vira ilegível ao rolar o cursor: o campo é a única
+   ilha alinhada à esquerda da página, e isso é proposital. */
+.input {
+  text-align: left;
+  /* Folga ao ser rolado para a vista com o teclado virtual aberto — sem isso a
+     mensagem de erro logo abaixo nasce coberta. */
+  scroll-margin-block: var(--sp-5) var(--sp-8);
+}
+
+/* O rótulo do "Colar" some na faixa estreita; o alvo continua com 48px e o
+   nome acessível vem do aria-label. */
+@media (max-width: 29.99em) {
+  .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+.input::placeholder {
+  color: color-mix(in oklab, var(--text-muted) 70%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .input:hover {
+    border-color: color-mix(in oklab, var(--accent) 60%, var(--border));
+  }
+}
+
+.input:focus-visible {
+  border-color: var(--accent);
+  outline-offset: 0;
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field__hint {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.field__error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+/* ==========================================================================
+   Botões
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding-inline: var(--sp-4);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  /* nowrap é certo para rótulo curto, mas sem o teto o botão empurra o
+     container e cria rolagem horizontal na página inteira. */
+  white-space: nowrap;
+  max-width: 100%;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+/* Para os poucos rótulos que descrevem uma ação composta e não cabem numa
+   linha em tela estreita. */
+.btn--wrap {
+  white-space: normal;
+  text-wrap: balance;
+  padding-block: var(--sp-2);
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 24px -8px var(--accent);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.btn--quiet {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: color-mix(in oklab, var(--danger) 55%, transparent);
+}
+
+/* Hover só onde existe ponteiro de verdade: no iOS a pseudo-classe dispara no
+   primeiro toque e fica grudada, anunciando um estado que já passou. */
+@media (hover: hover) and (pointer: fine) {
+  .btn--primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent) 85%, white);
+  }
+  .btn--ghost:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+  }
+  .btn--quiet:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn--danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--danger) 14%, transparent);
+  }
+}
+
+/* 44px é o piso de alvo de toque (WCAG 2.5.5). O "pequeno" aqui é o
+   padding horizontal e a tipografia, nunca a altura clicável. */
+.btn--sm {
+  min-height: 44px;
+  padding-inline: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+/* Botão só-ícone: o alvo continua com 48px mesmo com ícone de 16px. */
+.btn--icon {
+  min-width: var(--tap);
+  padding-inline: var(--sp-2);
+}
+.btn--icon.btn--sm {
+  min-width: 44px;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+@media (min-width: 30em) {
+  .btn--block {
+    width: auto;
+  }
+}
+
+/* ==========================================================================
+   Seleção de formato e qualidade
+   ========================================================================== */
+
+.chooser {
+  display: grid;
+  gap: var(--sp-5);
+  margin-top: var(--sp-5);
+}
+
+@media (min-width: 48em) {
+  .chooser {
+    /* `auto auto` + justify-content centra o par de grupos como bloco; com
+       `1fr` a segunda coluna esticaria e quebraria o eixo central. */
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: start;
+  }
+}
+
+.chooser__group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.chooser__legend {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0;
+  margin-bottom: var(--sp-2);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: var(--sp-1);
+  gap: var(--sp-1);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  border-radius: var(--radius);
+}
+
+.segmented__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding-inline: var(--sp-4);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .segmented__option:hover {
+    color: var(--text);
+  }
+}
+
+.segmented__option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.segmented__option:has(input:checked) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.segmented__option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding-inline: var(--sp-3);
+  border: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--border);
+  }
+}
+
+.chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.chip:has(input:checked) {
+  border-color: var(--brand);
+  color: var(--brand-hi);
+  background: color-mix(in oklab, var(--brand) 14%, var(--surface-2));
+}
+
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chooser__hint {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Metadados da mídia (usados no modal)
+   ========================================================================== */
+
+.preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.preview__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.source__icon {
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   Lista de espera
+   ========================================================================== */
+
+.staging {
+  margin-top: var(--sp-7);
+}
+
+.staging__controls {
+  margin-bottom: var(--sp-4);
+}
+
+.staging__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+/* Linha = alvo grande de abertura + botão irmão de remover. O gap separa os
+   dois alvos para que o polegar não erre no celular. */
+.pending {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.pending__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pending__main:hover {
+    border-color: color-mix(in oklab, var(--accent) 60%, var(--border));
+    background: var(--surface-2);
+  }
+}
+
+.pending__thumb {
+  flex-shrink: 0;
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.pending__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pending__text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--sp-1);
+  justify-items: center;
+}
+
+.pending__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pending__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* "padrão" x "ajustado" é a única informação da linha que muda de significado
+   conforme o topo: precisa de rótulo textual, não só de cor. */
+.pending__badge {
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius);
+  border: 1px dashed color-mix(in oklab, var(--border) 60%, transparent);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+}
+
+/* Correspondência de catálogo: o item não veio do link que o usuário colou, e
+   isso precisa estar escrito na linha, não escondido no modal. */
+.pending__badge--match {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface-2));
+}
+
+.match {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3);
+  text-align: left;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  border-radius: var(--radius);
+}
+
+.match svg {
+  flex-shrink: 0;
+  margin-top: 0.2em;
+  color: var(--accent);
+}
+
+.match strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.pending__badge--custom {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--brand) 55%, transparent);
+  color: var(--brand-hi);
+  background: color-mix(in oklab, var(--brand) 14%, var(--surface-2));
+}
+
+.pending__gear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pending__main:hover .pending__gear {
+    color: var(--accent);
+  }
+}
+
+/* Retorno ao toque: sem isso o único feedback de pressão é o realce cinza do
+   sistema, que destoa do tema. O `transform` é instantâneo e o bloco de
+   movimento reduzido não precisa desligá-lo. */
+.btn:active:not(:disabled),
+.chip:active,
+.segmented__option:active,
+.pending__main:active {
+  transform: scale(0.985);
+}
+
+.pending__main:active {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+/* Abaixo de 30em a engrenagem só rouba largura da coluna de texto: ela é
+   `aria-hidden` e a linha inteira já é um botão rotulado "Ajustar…". */
+@media (max-width: 29.99em) {
+  .pending__gear {
+    display: none;
+  }
+
+  .pending {
+    /* 12px: o mínimo recomendado entre dois alvos, e aqui o vizinho é
+       destrutivo e mora na borda onde o polegar pousa. */
+    gap: var(--sp-3);
+  }
+
+  .pending__main {
+    padding: var(--sp-2);
+    gap: var(--sp-2);
+  }
+
+  .pending__thumb {
+    width: 56px;
+  }
+}
+
+.pending--skeleton {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid color-mix(in oklab, var(--border) 35%, transparent);
+}
+
+/* ==========================================================================
+   Modal de ajuste
+   ========================================================================== */
+
+/* O scroll mora no corpo, não na caixa: assim o botão de fechar pode grudar no
+   topo. Se o `overflow` ficasse aqui, o X — que é `sticky` dentro do conteúdo —
+   sairia de tela na primeira rolagem, e no celular não há Esc para socorrer. */
+.modal {
+  /* `100% - margem` em vez de `92vw`: vw ignora a barra de rolagem. */
+  width: min(100% - var(--sp-4) * 2, 34rem);
+  max-height: 88dvh;
+  /* Explícito: a regra de centralização do UA varia entre navegadores e o
+     diálogo encostava na esquerda no Chromium. */
+  margin: auto;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 60px -20px var(--accent);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* `showModal()` deixa o resto `inert`, mas não trava o scroll do documento no
+   Safari iOS: sem isso o dedo fora da caixa rola a página de fundo. */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.modal::backdrop {
+  background: color-mix(in oklab, var(--c-void) 78%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.modal__body {
+  display: grid;
+  /* Coluna explícita: com coluna implícita `auto`, um filho de largura
+     percentual contribui 0 no dimensionamento das faixas e a linha da
+     miniatura nasce com ~2px. Declarar `1fr` torna a largura definida antes,
+     e só então o `aspect-ratio` consegue derivar a altura. */
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom));
+  text-align: center;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* `sticky` e não `absolute`: acompanha a rolagem do corpo do diálogo, então a
+   saída está sempre visível — e no celular não existe Esc para socorrer.
+   Ocupa a própria faixa do grid de propósito: cancelar a altura com margem
+   negativa colapsa a linha e joga o título por cima da miniatura. */
+.modal__close {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+
+.modal__close:hover {
+  color: var(--text);
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+/* Altura fixa em vez de `aspect-ratio`: num item de grid que não é `stretch`,
+   o Chromium não transfere a razão de aspecto para a contribuição intrínseca
+   da linha — a faixa nascia com 1,6px e a miniatura transbordava por cima do
+   título. 157px é 280 x 9/16; em coluna mais estreita o `object-fit: cover`
+   do <img> absorve a diferença de alguns pixels. */
+.modal__thumb {
+  width: min(100%, 280px);
+  height: 157px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+}
+
+.modal__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.modal__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding-top: var(--sp-2);
+  border-top: 1px solid color-mix(in oklab, var(--border) 35%, transparent);
+}
+
+/* ==========================================================================
+   Fila
+   ========================================================================== */
+
+.queue {
+  margin-top: var(--sp-7);
+}
+
+.queue__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.queue__title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.queue__count {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+.queue__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.item {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.item--downloading,
+.item--converting {
+  border-left-color: var(--accent);
+}
+.item--done {
+  border-left-color: var(--success);
+}
+.item--error {
+  border-left-color: var(--danger);
+}
+.item--canceled {
+  border-left-color: var(--text-muted);
+}
+.item--queued {
+  border-left-color: var(--warning);
+}
+
+.item__top {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  align-items: start;
+}
+
+/* A partir do tamanho de um cartão de fila confortável a miniatura volta
+   para o lado, e o bloco (miniatura + texto) é que fica centrado. */
+@container (min-width: 26rem) {
+  .item__top {
+    /* minmax(0, auto): a coluna acompanha o texto, mas pode encolher abaixo do
+       min-content — sem isso um título de palavra única estoura o cartão. */
+    grid-template-columns: 88px minmax(0, auto);
+    justify-content: center;
+  }
+}
+
+.item__thumb {
+  width: 88px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.item__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.item__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  margin: 0 0 var(--sp-2);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid color-mix(in oklab, var(--border) 45%, transparent);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* Estado sempre com ícone + rótulo: cor sozinha falha para daltônicos. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.status--queued {
+  color: var(--warning);
+}
+.status--downloading,
+.status--converting {
+  color: var(--accent);
+}
+.status--done {
+  color: var(--success);
+}
+.status--error {
+  color: var(--danger);
+}
+.status--canceled {
+  color: var(--text-muted);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--brand));
+  transition: width 0.3s ease;
+}
+
+.progress__bar--done {
+  background: var(--success);
+}
+.progress__bar--error {
+  background: var(--danger);
+}
+
+/* Faixa em movimento para a conversão, que não tem percentual real. */
+.progress__bar--indeterminate {
+  width: 100% !important;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--brand), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: slide 1.4s ease-in-out infinite;
+}
+
+@keyframes slide {
+  0% {
+    background-position: -40% 0;
+  }
+  100% {
+    background-position: 140% 0;
+  }
+}
+
+/* Um degrau acima de --fs-xs: percentual, bytes, velocidade e ETA não são
+   nota de rodapé — é o que o usuário encara durante o download inteiro. */
+.item__stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-4);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.item__error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+.item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+
+/* ==========================================================================
+   Estado vazio
+   ========================================================================== */
+
+/* Precisa de superfície própria: sem preenchimento o cartão vazio some no
+   fundo da página e a borda tracejada sozinha não constrói o limite. */
+.empty {
+  text-align: center;
+  padding: var(--sp-7) var(--sp-4);
+  background: var(--surface);
+  border: 1px dashed color-mix(in oklab, var(--border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+}
+
+/* Único consumidor de --fs-xl: texto curto e fixo, que aguenta o degrau.
+   Os outros H2 carregam título de vídeo do usuário e ficam em --fs-lg. */
+.empty__title {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--sp-2);
+}
+
+.empty p {
+  margin: 0 auto;
+  max-width: 48ch;
+}
+
+/* ==========================================================================
+   Carregamento
+   ========================================================================== */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    color-mix(in oklab, var(--accent) 10%, var(--surface-2)) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in oklab, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   Portão de acesso (/entrar)
+   ========================================================================== */
+
+/* Mesma largura do modal: um campo só não pede a faixa inteira de 1120px, e
+   esticado assim o botão fica longe demais do que ele envia. */
+.gate {
+  max-width: 34rem;
+  margin-inline: auto;
+}
+
+.gate .field {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Rodapé
+   ========================================================================== */
+
+.footer {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-4);
+  border-top: 1px solid color-mix(in oklab, var(--border) 35%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  justify-content: center;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Link inline no meio de um parágrafo é isento do mínimo de 24px da WCAG
+   2.5.8, mas com 15px de altura fica apertado no toque. */
+.footer a {
+  display: inline-block;
+  padding-block: var(--sp-1);
+}
+
+/* ==========================================================================
+   Movimento reduzido — obrigatório: flicker neon é risco fotossensível
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton,
+  .progress__bar--indeterminate,
+  .spinner {
+    animation: none !important;
+  }
+
+  .progress__bar--indeterminate {
+    background: var(--accent);
+  }
+}
