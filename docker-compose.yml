@@ -1,6 +1,7 @@
 # CURUPIRA num servidor.
 #
-#   CURUPIRA_ACCESS_KEY=uma-senha-longa docker compose up -d --build
+#   docker compose up -d --build
+#   (opcional) CURUPIRA_ACCESS_KEY=uma-senha-longa docker compose up -d --build
 #
 # A porta fica presa ao 127.0.0.1 do host: quem publica para fora é o túnel
 # (Cloudflare Tunnel, Caddy, Nginx…), nunca o Docker direto na internet.
@@ -12,8 +13,8 @@ services:
     container_name: curupira
     restart: unless-stopped
     environment:
-      # Liga o portão de senha. Sem ela o app fica aberto para quem achar o link.
-      CURUPIRA_ACCESS_KEY: ${CURUPIRA_ACCESS_KEY:?defina CURUPIRA_ACCESS_KEY}
+      # Opcional: liga o portão de senha. Vazia, o app fica aberto para quem achar o link.
+      CURUPIRA_ACCESS_KEY: ${CURUPIRA_ACCESS_KEY:-}
       # Horas até um arquivo baixado ser apagado do servidor (0 = nunca).
       CURUPIRA_RETENTION_HOURS: ${CURUPIRA_RETENTION_HOURS:-6}
       # URL pública do app, com https e sem barra no fim. Usada nos cartões de compartilhamento.

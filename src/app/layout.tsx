@@ -29,7 +29,7 @@ function siteUrl(): URL {
 
 const TITLE = "CURUPIRA — Baixe vídeos e músicas";
 const DESCRIPTION =
-  "Cole o link de um vídeo ou música e baixe em MP4 ou MP3, sem assinatura. Ferramenta privada de download, com acesso por senha. Um produto Abner Software.";
+  "Cole o link de um vídeo ou música e baixe em MP4 ou MP3, sem assinatura. Grátis, direto no navegador, sem instalar nada. Um produto Abner Software.";
 
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
