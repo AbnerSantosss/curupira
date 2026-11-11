@@ -25,7 +25,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv ca-certificates tini \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/yt-dlp \
- && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade "yt-dlp[default]" \
+ && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade "yt-dlp[default,curl-cffi]" \
  && chown -R node:node /opt/yt-dlp
 
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno

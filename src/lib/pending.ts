@@ -39,6 +39,8 @@ export interface Defaults {
 }
 
 export function effectiveKind(item: PendingItem, defaults: Defaults): MediaKind {
+  // Fonte só de áudio ignora o padrão "vídeo": senão o job sai rotulado MP4.
+  if (item.info.audioOnly) return "audio";
   return item.override.kind ?? defaults.kind;
 }
 

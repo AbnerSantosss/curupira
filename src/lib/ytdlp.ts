@@ -141,7 +141,19 @@ export function translateError(raw: string): string {
     ],
     [
       /sign in to confirm you.?re not a bot|confirm you are not a bot/i,
-      "O site pediu verificação anti-robô. Tente de novo daqui a alguns minutos.",
+      // No YouTube isto não passa sozinho: o bloqueio é do IP do servidor (de
+      // datacenter), não da pessoa. Prometer "tente daqui a pouco" engana.
+      "O YouTube está bloqueando downloads feitos a partir deste servidor. Links de outros sites continuam funcionando.",
+    ],
+    [
+      // Vimeo: vários vídeos só tocam para quem está logado no site.
+      /only works when logged.?in|logged-in|login required|requires authentication/i,
+      "Esse vídeo só abre para quem está logado no site de origem. Não consigo baixar sem conta.",
+    ],
+    [
+      // Falta a biblioteca de "impersonation" (curl_cffi) no servidor.
+      /impersonat/i,
+      "Esse site exige um recurso que o servidor ainda não tem. Avise quem cuida do CURUPIRA.",
     ],
     [
       /video unavailable|has been removed|no longer available|account associated with this video has been terminated/i,
@@ -311,6 +323,11 @@ export async function analyze(url: string): Promise<MediaInfo> {
     ),
   ].sort((a, b) => b - a);
 
+  // Fonte só de áudio (SoundCloud, Bandcamp…): todo formato declarado tem
+  // `vcodec: none`. Pedir "vídeo" aí entrega um .m4a com rótulo de MP4.
+  const formats = info.formats ?? [];
+  const audioOnly = formats.length > 0 && formats.every((f) => !f.vcodec || f.vcodec === "none");
+
   return {
     id: info.id ?? "desconhecido",
     title: info.title ?? "Sem título",
@@ -321,6 +338,7 @@ export async function analyze(url: string): Promise<MediaInfo> {
     isLive: Boolean(info.is_live) || info.live_status === "is_live",
     webpageUrl: info.webpage_url ?? url,
     heights,
+    audioOnly,
   };
 }
 

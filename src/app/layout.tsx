@@ -16,12 +16,39 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+// URL pública do app (ex.: https://curupira.203-0-113-10.sslip.io), lida em tempo de
+// execução no servidor. Use "||" e não "??": a variável chega vazia do compose.
+// Valor ausente ou inválido cai no endereço local, para o build nunca quebrar.
+function siteUrl(): URL {
+  try {
+    return new URL(process.env.CURUPIRA_PUBLIC_URL || "http://localhost:3055");
+  } catch {
+    return new URL("http://localhost:3055");
+  }
+}
+
+const TITLE = "CURUPIRA — Baixe vídeos e músicas";
+const DESCRIPTION =
+  "Cole o link de um vídeo ou música e baixe em MP4 ou MP3, sem assinatura. Ferramenta privada de download, com acesso por senha. Um produto Abner Software.";
+
 export const metadata: Metadata = {
-  title: "CURUPIRA — Baixe vídeos e músicas",
-  description:
-    "Cole um link e baixe o vídeo em MP4 ou só o áudio em MP3. Um produto Abner Software.",
+  metadataBase: siteUrl(),
+  title: TITLE,
+  description: DESCRIPTION,
   applicationName: "CURUPIRA",
   authors: [{ name: "Abner Software" }],
+  // Noindex total (auditoria de SEO). Sem canonical e sem sitemap de propósito.
+  robots: { index: false, follow: false },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "CURUPIRA",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/",
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +63,8 @@ export const viewport: Viewport = {
   // Com o teclado virtual, o layout encolhe em vez de ficar por baixo dele.
   interactiveWidget: "resizes-content",
   themeColor: "#08080c",
+  // O app é escuro: barras de rolagem e controles nativos já nascem escuros.
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

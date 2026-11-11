@@ -36,7 +36,12 @@ export function PendingModal({ item, defaults, onChange, onDownload, onRemove, o
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (item && !dialog.open) dialog.showModal();
+    if (item && !dialog.open) {
+      dialog.showModal();
+      // Sem alvo explícito o foco cai no corpo rolável (um DIV) no celular.
+      // O botão Fechar é o primeiro controle e funciona sem Esc.
+      dialog.querySelector<HTMLElement>(".modal__close")?.focus();
+    }
     if (!item && dialog.open) dialog.close();
   }, [item]);
 
@@ -106,6 +111,7 @@ export function PendingModal({ item, defaults, onChange, onDownload, onRemove, o
                 type="radio"
                 name="modal-kind"
                 checked={kind === "video"}
+                disabled={item.info.audioOnly}
                 onChange={() => onChange(item.key, { ...item.override, kind: "video" })}
               />
               <FiFilm aria-hidden="true" />
@@ -122,7 +128,11 @@ export function PendingModal({ item, defaults, onChange, onDownload, onRemove, o
               Áudio MP3
             </label>
           </div>
-          {usingDefaultKind && <p className="chooser__hint">Herdando o formato padrão da lista.</p>}
+          {item.info.audioOnly ? (
+            <p className="chooser__hint">Esse link só tem áudio, então sai em MP3.</p>
+          ) : (
+            usingDefaultKind && <p className="chooser__hint">Herdando o formato padrão da lista.</p>
+          )}
         </fieldset>
 
         <fieldset className="chooser__group">

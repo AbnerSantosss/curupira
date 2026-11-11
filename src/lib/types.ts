@@ -48,6 +48,8 @@ export interface MediaInfo {
   webpageUrl: string;
   /** Alturas disponíveis, da maior para a menor. */
   heights: number[];
+  /** A fonte só tem áudio: não existe opção de vídeo. */
+  audioOnly?: boolean;
   /** Preenchido só quando o link de origem era de catálogo. */
   matchedFrom?: MatchedFrom;
 }

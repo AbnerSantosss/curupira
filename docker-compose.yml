@@ -16,6 +16,8 @@ services:
       CURUPIRA_ACCESS_KEY: ${CURUPIRA_ACCESS_KEY:?defina CURUPIRA_ACCESS_KEY}
       # Horas até um arquivo baixado ser apagado do servidor (0 = nunca).
       CURUPIRA_RETENTION_HOURS: ${CURUPIRA_RETENTION_HOURS:-6}
+      # URL pública do app, com https e sem barra no fim. Usada nos cartões de compartilhamento.
+      CURUPIRA_PUBLIC_URL: ${CURUPIRA_PUBLIC_URL:-}
       # 1 = atualiza o yt-dlp a cada subida do container.
       CURUPIRA_UPDATE_YTDLP: ${CURUPIRA_UPDATE_YTDLP:-1}
     ports:

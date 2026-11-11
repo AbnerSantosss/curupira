@@ -17,6 +17,7 @@ export default function Home() {
             alt=""
             width={512}
             height={512}
+            sizes="48px"
             priority
           />
           <span>

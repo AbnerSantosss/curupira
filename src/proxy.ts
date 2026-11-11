@@ -32,7 +32,11 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Fica de fora o que a própria tela de entrada precisa para existir: ela
-  // mesma, a rota que recebe a senha, os assets do build e as imagens da marca.
-  matcher: ["/((?!entrar|api/entrar|_next/static|_next/image|icon\\.png|logo\\.png).*)"],
+  // Fica de fora o que a tela de entrada, o navegador e quem monta o cartão de
+  // compartilhamento precisam alcançar sem senha. Nada aqui é sigiloso. O matcher é
+  // por prefixo: `apple-icon` cobre `/apple-icon.png`; `opengraph-image`, `/opengraph-image.png`.
+  // Sem `sitemap.xml` de propósito: não há sitemap (noindex total).
+  matcher: [
+    "/((?!entrar|api/entrar|_next/static|_next/image|icon\\.png|logo\\.png|icons/|apple-icon|favicon\\.ico|robots\\.txt|manifest\\.webmanifest|opengraph-image|twitter-image).*)",
+  ],
 };

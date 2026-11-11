@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   FiAlertTriangle,
+  FiCheck,
   FiClipboard,
   FiDownload,
   FiFilm,
@@ -18,17 +20,45 @@ import {
   effectiveKind,
   formatLabel,
 } from "@/lib/pending";
-import { Backdrop } from "./Backdrop";
 import { PendingModal } from "./PendingModal";
 import { PendingRow } from "./PendingRow";
 import { QueueItem } from "./QueueItem";
 import { detectPlatform } from "./PlatformIcon";
+
+/**
+ * O fundo WebGL é decorativo e pesa (three.js): carrega depois da hidratação,
+ * só no navegador, e o formulário já é utilizável antes dele. O próprio
+ * Backdrop respeita `prefers-reduced-motion` (desenha 1 quadro, sem loop).
+ */
+const Backdrop = dynamic(() => import("./Backdrop").then((mod) => mod.Backdrop), {
+  ssr: false,
+});
 
 /** Espelha o teto de simultâneos do runner — só serve para normalizar o fundo 3D. */
 const MAX_CONCURRENT = 3;
 
 /** Marcos anunciados por leitor de tela — anunciar cada 1% viraria metralhadora. */
 const MILESTONES = [25, 50, 75];
+
+/** Tempo máximo de espera pela análise (o servidor desiste em 90 s). */
+const ANALYZE_TIMEOUT_MS = 95_000;
+
+/**
+ * `crypto.randomUUID` só existe em contexto seguro (HTTPS ou localhost). Quem
+ * abre o app por `http://IP:porta` quebraria no primeiro "Adicionar".
+ */
+function newKey(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+/** Mensagem útil para quando a resposta não traz o `error` do nosso servidor. */
+function statusMessage(status: number, fallback: string): string {
+  if (status === 401) return "Sua sessão expirou. Recarregue a página e entre de novo.";
+  if (status >= 500) return "O servidor não respondeu direito. Tente de novo em instantes.";
+  return fallback;
+}
 
 /** `children` é renderizado logo abaixo do formulário de link — hoje, a vitrine de plataformas. */
 export function Downloader({ children }: { children?: React.ReactNode }) {
@@ -41,6 +71,9 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [announcement, setAnnouncement] = useState("");
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const [jobsLoaded, setJobsLoaded] = useState(false);
+  const [live, setLive] = useState<"on" | "reconnecting" | "closed">("on");
 
   const inputId = useId();
   const errorId = useId();
@@ -57,6 +90,8 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
     source.addEventListener("jobs", (event) => {
       const { jobs: incoming } = JSON.parse((event as MessageEvent).data) as { jobs: Job[] };
       setJobs(incoming);
+      setJobsLoaded(true);
+      setLive("on");
 
       // Anúncio acessível: só transições de estado e marcos de progresso.
       const messages: string[] = [];
@@ -78,6 +113,11 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
       }
       if (messages.length) setAnnouncement(messages.join(". "));
     });
+
+    // Sem isto a fila congelava com os últimos valores e ninguém sabia. Com a
+    // sessão expirada (401) o navegador fecha a conexão e não volta sozinho.
+    source.onerror = () =>
+      setLive(source.readyState === EventSource.CLOSED ? "closed" : "reconnecting");
 
     return () => source.close();
   }, []);
@@ -107,17 +147,23 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
 
     setAnalyzing(true);
     setFormError(null);
+    setLastAdded(null);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
 
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: value }),
+        signal: controller.signal,
       });
-      const data = await response.json();
+      // Proxy/túnel com falha devolve HTML: não pode virar "sem conexão".
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setFormError(data.error ?? "Não consegui ler esse link.");
+        setFormError(data?.error ?? statusMessage(response.status, "Não consegui ler esse link."));
         return;
       }
 
@@ -131,7 +177,7 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
           duplicate = true;
           return current;
         }
-        return [...current, { key: crypto.randomUUID(), info, override: {} }];
+        return [...current, { key: newKey(), info, override: {} }];
       });
 
       if (duplicate) {
@@ -142,10 +188,16 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
       // Campo limpo e focado: o padrão de uso é enfileirar vários links seguidos.
       setUrl("");
       setAnnouncement(`${info.title} entrou na lista de espera.`);
+      setLastAdded(info.title);
       inputRef.current?.focus();
-    } catch {
-      setFormError("Sem conexão com o servidor. Verifique se ele ainda está rodando.");
+    } catch (error) {
+      setFormError(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "A análise demorou demais. Tente de novo."
+          : "Sem conexão. Confira sua internet e tente de novo.",
+      );
     } finally {
+      clearTimeout(timer);
       setAnalyzing(false);
     }
   }, []);
@@ -168,8 +220,8 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
         }),
       });
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "Não consegui colocar na fila.");
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error ?? statusMessage(response.status, "Não consegui colocar na fila."));
       }
     },
     [],
@@ -189,7 +241,13 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
         setPending((current) => current.filter((entry) => entry.key !== key));
         setAnnouncement(`${item.info.title} entrou na fila.`);
       } catch (err) {
-        setFormError(err instanceof Error ? err.message : "Não consegui colocar na fila.");
+        setFormError(
+          err instanceof TypeError
+            ? "Sem conexão. Confira sua internet e tente de novo."
+            : err instanceof Error
+              ? err.message
+              : "Não consegui colocar na fila.",
+        );
       } finally {
         setSubmitting(false);
       }
@@ -237,17 +295,34 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
   /* Ações da fila ativa                                                    */
   /* ---------------------------------------------------------------------- */
 
-  const cancel = useCallback((id: string) => {
-    void fetch(`/api/jobs/${id}`, { method: "DELETE" });
+  // Falha nestas ações não pode ser silenciosa: o botão parece não ter feito nada.
+  const jobAction = useCallback(async (path: string, method: "DELETE" | "POST") => {
+    try {
+      const response = await fetch(path, { method });
+      if (!response.ok) {
+        setFormError(
+          statusMessage(response.status, "Não consegui concluir essa ação. Tente de novo."),
+        );
+      }
+    } catch {
+      setFormError("Sem conexão. Confira sua internet e tente de novo.");
+    }
   }, []);
 
-  const remove = useCallback((id: string) => {
-    void fetch(`/api/jobs/${id}?mode=remove`, { method: "DELETE" });
-  }, []);
+  const cancel = useCallback(
+    (id: string) => void jobAction(`/api/jobs/${id}`, "DELETE"),
+    [jobAction],
+  );
 
-  const retryJob = useCallback((id: string) => {
-    void fetch(`/api/jobs/${id}`, { method: "POST" });
-  }, []);
+  const remove = useCallback(
+    (id: string) => void jobAction(`/api/jobs/${id}?mode=remove`, "DELETE"),
+    [jobAction],
+  );
+
+  const retryJob = useCallback(
+    (id: string) => void jobAction(`/api/jobs/${id}`, "POST"),
+    [jobAction],
+  );
 
   const pasteFromClipboard = useCallback(async () => {
     try {
@@ -258,8 +333,14 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
       }
     } catch {
       // Navegador sem permissão de leitura da área de transferência: o campo
-      // continua utilizável, então basta devolver o foco.
-      setFormError("Não consegui ler a área de transferência. Cole com Ctrl+V no campo.");
+      // continua utilizável, então basta devolver o foco. No toque não existe
+      // Ctrl+V, então a instrução muda conforme o ponteiro.
+      const touch = !window.matchMedia("(pointer: fine)").matches;
+      setFormError(
+        touch
+          ? "Não consegui ler a área de transferência. Toque e segure no campo e escolha Colar."
+          : "Não consegui ler a área de transferência. Cole com Ctrl+V no campo.",
+      );
       inputRef.current?.focus();
     }
   }, [analyze]);
@@ -320,6 +401,7 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
                 onChange={(event) => {
                   setUrl(event.target.value);
                   if (formError) setFormError(null);
+                  if (lastAdded) setLastAdded(null);
                 }}
                 aria-invalid={formError ? true : undefined}
                 aria-describedby={formError ? errorId : undefined}
@@ -352,8 +434,25 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
               Adicione quantos links quiser — nada baixa até você mandar.
             </p>
 
+            {/* Sem `role`: a região viva única do app já anuncia; duplicar leria duas vezes. */}
+            {lastAdded && pending.length > 0 && !formError && (
+              <p className="field__success">
+                <FiCheck aria-hidden="true" style={{ flexShrink: 0 }} />
+                <span>Entrou na lista: {lastAdded}</span>
+                <button
+                  type="button"
+                  className="btn btn--quiet btn--sm"
+                  onClick={() =>
+                    document.getElementById("lista-espera")?.scrollIntoView({ block: "start" })
+                  }
+                >
+                  Ver lista ({pending.length})
+                </button>
+              </p>
+            )}
+
             {formError && (
-              <p className="field__error" id={errorId}>
+              <p className="field__error" id={errorId} role="alert">
                 <FiAlertTriangle aria-hidden="true" style={{ flexShrink: 0, marginTop: "0.2em" }} />
                 <span>{formError}</span>
               </p>
@@ -375,7 +474,7 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
       {children}
 
       {pending.length > 0 && (
-        <section className="staging" aria-labelledby="staging-heading">
+        <section id="lista-espera" className="staging" aria-labelledby="staging-heading">
           <div className="queue__head">
             <h2 id="staging-heading" className="queue__title">
               Lista de espera
@@ -509,6 +608,19 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
       />
 
       <section className="queue" aria-labelledby="queue-heading">
+        {live !== "on" && (
+          <p className="notice" role="status">
+            <FiAlertTriangle aria-hidden="true" style={{ flexShrink: 0 }} />
+            {live === "closed" ? (
+              <span>
+                Conexão perdida. <a href="/entrar">Entrar de novo</a> ou recarregue a página.
+              </span>
+            ) : (
+              <span>Conexão perdida. Tentando reconectar…</span>
+            )}
+          </p>
+        )}
+
         <div className="queue__head">
           <h2 id="queue-heading" className="queue__title">
             Fila de downloads
@@ -522,7 +634,13 @@ export function Downloader({ children }: { children?: React.ReactNode }) {
           </span>
         </div>
 
-        {jobs.length === 0 ? (
+        {!jobsLoaded ? (
+          <div className="empty" role="status">
+            <p className="empty__title">
+              <span className="spinner" aria-hidden="true" /> Carregando a fila…
+            </p>
+          </div>
+        ) : jobs.length === 0 ? (
           <div className="empty">
             <p className="empty__title">Nada baixando ainda</p>
             <p>

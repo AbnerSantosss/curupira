@@ -3,6 +3,7 @@ import Image from "next/image";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { FiAlertTriangle, FiLock } from "react-icons/fi";
+import { PasswordInput } from "@/components/PasswordInput";
 import { SESSION_COOKIE, accessKey, isValidSession, safeReturnPath } from "@/lib/access";
 
 export const metadata: Metadata = {
@@ -35,7 +36,15 @@ export default async function Entrar({
     <main className="shell">
       <header className="masthead">
         <div className="brand">
-          <Image className="brand__mark" src="/logo.png" alt="" width={512} height={512} priority />
+          <Image
+            className="brand__mark"
+            src="/logo.png"
+            alt=""
+            width={512}
+            height={512}
+            sizes="48px"
+            priority
+          />
           <span>
             <span className="brand__name">Curupira</span>
             <span className="brand__parent">Abner Software</span>
@@ -61,17 +70,11 @@ export default async function Entrar({
               Senha
             </label>
             <div className="field__row">
-              <input
+              <PasswordInput
                 id="chave"
                 name="chave"
-                type="password"
-                className="input"
-                autoComplete="current-password"
-                enterKeyHint="go"
-                required
-                autoFocus
-                aria-invalid={message ? true : undefined}
-                aria-describedby={message ? "gate-error" : undefined}
+                invalid={Boolean(message)}
+                describedBy={message ? "gate-error" : undefined}
               />
               <button type="submit" className="btn btn--primary btn--block">
                 <FiLock aria-hidden />
