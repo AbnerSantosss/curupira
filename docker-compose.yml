@@ -21,6 +21,9 @@ services:
       CURUPIRA_PUBLIC_URL: ${CURUPIRA_PUBLIC_URL:-}
       # 1 = atualiza o yt-dlp a cada subida do container.
       CURUPIRA_UPDATE_YTDLP: ${CURUPIRA_UPDATE_YTDLP:-1}
+      # Caminho, DENTRO do container, de um cookies.txt (Netscape) para o yt-dlp.
+      # Monte o arquivo por volume (só leitura). Vazio = sem cookies.
+      CURUPIRA_COOKIES_FILE: ${CURUPIRA_COOKIES_FILE:-}
     ports:
       - "127.0.0.1:${CURUPIRA_PORT:-3055}:3000"
     volumes:

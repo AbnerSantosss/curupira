@@ -46,3 +46,7 @@ next-env.d.ts
 
 # estado local de ferramentas do editor
 .impeccable/
+
+# cookies de sessão (yt-dlp) nunca entram no repo
+*cookies*.txt
+/secrets

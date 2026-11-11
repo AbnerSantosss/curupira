@@ -3,6 +3,8 @@ import type { ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import fs from "node:fs/promises";
+import os from "node:os";
+import { randomUUID } from "node:crypto";
 import type { MediaInfo, MediaKind } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -32,6 +34,33 @@ type Runner = { command: string; baseArgs: string[] };
  */
 function childEnv(): NodeJS.ProcessEnv {
   return { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" };
+}
+
+/**
+ * Cookies opcionais (formato Netscape) para fontes que exigem sessão — no
+ * servidor, o YouTube recusa o IP de datacenter sem eles.
+ *
+ * Cada processo recebe uma CÓPIA própria em /tmp: o yt-dlp regrava o arquivo
+ * de cookies ao sair, e dois downloads simultâneos escrevendo no mesmo arquivo
+ * o corrompem. O original fica intocado (e pode ser montado só-leitura).
+ * Sem `CURUPIRA_COOKIES_FILE`, ou com o arquivo ausente, nada muda.
+ */
+async function cookieArgs(): Promise<{ args: string[]; cleanup: () => void }> {
+  const none = { args: [], cleanup: () => {} };
+  const source = process.env.CURUPIRA_COOKIES_FILE?.trim();
+  if (!source) return none;
+  try {
+    const copy = path.join(os.tmpdir(), `curupira-cookies-${randomUUID()}.txt`);
+    await fs.copyFile(source, copy);
+    await fs.chmod(copy, 0o600);
+    return {
+      args: ["--cookies", copy],
+      cleanup: () => void fs.rm(copy, { force: true }).catch(() => {}),
+    };
+  } catch {
+    console.warn("[ytdlp:cookies] arquivo de cookies indisponível, seguindo sem ele");
+    return none;
+  }
 }
 
 let cachedRunner: Runner | null = null;
@@ -270,9 +299,11 @@ const ANALYZE_TIMEOUT_MS = 90_000;
 /** Lê os metadados do link sem baixar nada. */
 export async function analyze(url: string): Promise<MediaInfo> {
   const { command, baseArgs } = await resolveRunner();
+  const cookies = await cookieArgs();
 
   const args = [
     ...baseArgs,
+    ...cookies.args,
     "--dump-single-json",
     "--no-playlist",
     "--no-warnings",
@@ -301,6 +332,8 @@ export async function analyze(url: string): Promise<MediaInfo> {
       throw new YtDlpError("A análise demorou demais e foi interrompida. Tente de novo.");
     }
     throw new YtDlpError(translateError(e.stderr || e.message || ""));
+  } finally {
+    cookies.cleanup();
   }
 
   let info: RawInfo;
@@ -450,14 +483,18 @@ export function buildDownloadArgs(opts: DownloadOptions): string[] {
 /** Sobe o processo do yt-dlp já com os argumentos montados. */
 export async function spawnDownload(opts: DownloadOptions) {
   const { command, baseArgs } = await resolveRunner();
-  const args = [...baseArgs, ...buildDownloadArgs(opts)];
+  const cookies = await cookieArgs();
+  const args = [...baseArgs, ...cookies.args, ...buildDownloadArgs(opts)];
   // Fora do Windows, `detached` põe o yt-dlp num grupo de processos próprio —
   // é o que deixa o `killTree` encerrar o ffmpeg junto (ver abaixo).
-  return spawn(command, args, {
+  const proc = spawn(command, args, {
     windowsHide: true,
     env: childEnv(),
     detached: process.platform !== "win32",
   });
+  proc.once("close", cookies.cleanup);
+  proc.once("error", cookies.cleanup);
+  return proc;
 }
 
 /**

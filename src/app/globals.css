@@ -323,6 +323,10 @@ img {
   font-weight: 800;
   letter-spacing: -0.02em;
   margin-bottom: var(--sp-3);
+  /* Com zoom de texto alto numa tela de 320px, "assinatura." sozinha passa da
+     largura. Hifeniza antes de cortar; só quebra no meio se não houver jeito. */
+  hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .hero__title em {
@@ -732,6 +736,9 @@ img {
 
 .segmented {
   display: inline-flex;
+  /* Zoom de 200% em 320px: as duas opções não cabem lado a lado. */
+  flex-wrap: wrap;
+  max-width: 100%;
   padding: var(--sp-1);
   gap: var(--sp-1);
   background: var(--surface-2);
@@ -1237,6 +1244,14 @@ body:has(dialog[open]) {
 
   .modal__body {
     gap: var(--sp-3);
+  }
+}
+
+/* Celular deitado (~360px de altura): a miniatura é decorativa (alt vazio) e
+   empurrava o formato para fora da primeira tela. O título já identifica o item. */
+@media (max-height: 26rem) {
+  .modal__thumb {
+    display: none;
   }
 }
 
